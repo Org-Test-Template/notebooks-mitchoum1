@@ -1,7 +1,20 @@
 import subprocess
 import time
 import os
-import json # Keep json import for general utility, though less needed for direct size lookup
+import json
+
+# Helper function to convert bytes to human-readable format (KB, MB, GB)
+def bytes_to_human_readable(num_bytes):
+    """Converts a number of bytes into a human-readable string (KB, MB, GB)."""
+    if num_bytes is None or not isinstance(num_bytes, (int, float)):
+        return "N/A"
+    
+    for unit in ['Bytes', 'KB', 'MB', 'GB', 'TB']:
+        if num_bytes < 1024.0:
+            return f"{num_bytes:.2f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.2f} PB" # For extremely large sizes
+
 
 # --- Get inputs from the user ---
 # Prompt the user for the tag name
@@ -41,14 +54,15 @@ base_build_command_args.extend([
 cleanup_command_args = ["podman", "system", "prune", "-f"]
 
 # Command to get image size using 'podman image inspect'
-# This command will directly output the size in bytes
+# This command will directly output the size in bytes as an integer string
 # Note: tag_name will be appended to this list later in the loop
 base_image_inspect_command_args = ["podman", "image", "inspect", "--format", "{{.Size}}"]
 
 
 num_runs = 10
 run_times = []
-image_sizes = [] # To store image sizes for each successful run
+image_sizes_human_readable = [] # To store image sizes as human-readable strings for display
+numerical_image_sizes_bytes = [] # To store image sizes as raw bytes (integers) for calculation
 
 print(f"\nAttempting to run command: {' '.join(base_build_command_args)}")
 print(f"This command will be executed {num_runs} times, and the duration of each run will be tracked.")
@@ -113,22 +127,34 @@ for i in range(num_runs):
                 capture_output=True,
                 text=True
             )
-            # The output should directly be the size string
-            found_image_size = size_result.stdout.strip()
-            image_sizes.append(found_image_size)
-            print(f"Image '{tag_name}' size: {found_image_size}")
+            # The output should directly be the size string (in bytes)
+            raw_image_size_str = size_result.stdout.strip()
+            
+            try:
+                raw_image_size_bytes = int(raw_image_size_str)
+                numerical_image_sizes_bytes.append(raw_image_size_bytes)
+                found_image_size_human = bytes_to_human_readable(raw_image_size_bytes)
+                image_sizes_human_readable.append(found_image_size_human)
+                print(f"Image '{tag_name}' size: {found_image_size_human}")
+            except ValueError:
+                print(f"Warning: Could not parse image size '{raw_image_size_str}' to a number.")
+                image_sizes_human_readable.append(f"Invalid: {raw_image_size_str}")
+                numerical_image_sizes_bytes.append(None) # Append None or 0 to indicate failure to parse
 
         except subprocess.CalledProcessError as e:
             print(f"Error getting image size (exit code {e.returncode}):")
             print(f"STDOUT:\n{e.stdout}")
             print(f"STDERR:\n{e.stderr}")
-            image_sizes.append("Error")
+            image_sizes_human_readable.append("Error")
+            numerical_image_sizes_bytes.append(None)
         except Exception as e:
             print(f"An unexpected Python error occurred while getting image size: {e}")
-            image_sizes.append("Error")
+            image_sizes_human_readable.append("Error")
+            numerical_image_sizes_bytes.append(None)
     else:
-        # If build wasn't successful, append a placeholder for image size
-        image_sizes.append("Failed Build")
+        # If build wasn't successful, append placeholders
+        image_sizes_human_readable.append("Failed Build")
+        numerical_image_sizes_bytes.append(None)
 
 
     # --- Clean up after each run (optional) ---
@@ -157,18 +183,18 @@ for i in range(num_runs):
 
 
 print("\n--- Summary of Run Times and Image Sizes ---")
-# Ensure that run_times and image_sizes are aligned for summary
-min_len = min(len(run_times), len(image_sizes))
+# Use the human-readable sizes for individual run display
+min_len = min(len(run_times), len(image_sizes_human_readable))
 for i in range(min_len):
-    print(f"Run {i+1}: Time = {run_times[i]:.2f} seconds, Image Size = {image_sizes[i]}")
+    print(f"Run {i+1}: Time = {run_times[i]:.2f} seconds, Image Size = {image_sizes_human_readable[i]}")
 
 # Handle cases where one list might be longer than the other (e.g., if a build broke early)
 if len(run_times) > min_len:
     for i in range(min_len, len(run_times)):
         print(f"Run {i+1}: Time = {run_times[i]:.2f} seconds, Image Size = Not Recorded (Error during size retrieval)")
-if len(image_sizes) > min_len:
-    for i in range(min_len, len(image_sizes)):
-        print(f"Run {i+1}: Image Size = {image_sizes[i]}, Time = Not Recorded (Error during build)")
+if len(image_sizes_human_readable) > min_len:
+    for i in range(min_len, len(image_sizes_human_readable)):
+        print(f"Run {i+1}: Image Size = {image_sizes_human_readable[i]}, Time = Not Recorded (Error during build)")
 
 
 if run_times:
@@ -181,3 +207,12 @@ if run_times:
         print("No run times recorded.")
 else:
     print("No runs were completed.")
+
+# --- Calculate and display average image size ---
+valid_numerical_sizes = [s for s in numerical_image_sizes_bytes if s is not None]
+if valid_numerical_sizes:
+    total_image_bytes = sum(valid_numerical_sizes)
+    average_image_bytes = total_image_bytes / len(valid_numerical_sizes)
+    print(f"\nAverage image size across {len(valid_numerical_sizes)} successful builds: {bytes_to_human_readable(average_image_bytes)}")
+else:
+    print("\nNo valid image sizes were recorded to calculate an average.")
