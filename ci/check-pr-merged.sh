@@ -23,13 +23,13 @@ for (( i=1; i<=MAX_ATTEMPTS; i++ )); do
     PR_STATE=$(gh pr view --repo "$REPO_OWNER/$REPO_NAME" $PR_NUMBER --json mergedAt --jq '.mergedAt')
 
     if [ "$PR_STATE" = "null" ] || [ -z "$PR_STATE" ]; then
-    echo "PR #$PR_NUMBER is not merged yet. Waiting..."
-    sleep $SLEEP_DURATION
+        echo "PR #$PR_NUMBER is not merged yet. Waiting..."
+        sleep $SLEEP_DURATION
     else
-    echo "PR #$PR_NUMBER is merged!"
-    echo "pr_merged=true" >> $GITHUB_ENV
-    echo "pr_merged=true" >> $GITHUB_OUTPUT
-    exit 0
+        echo "PR #$PR_NUMBER is merged!"
+        echo "pr_merged=true" >> $GITHUB_ENV
+        echo "pr_merged=true" >> $GITHUB_OUTPUT
+        exit 0
     fi
 done
 
