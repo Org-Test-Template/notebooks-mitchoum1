@@ -30,11 +30,11 @@ permissions:
         required: false
         type: string
         default: "main"
-      user-hash:
+      user_hash:
         description: "Optional: Specify a Git hash (it should exists on the branch history)"
         required: false
         type: string
-      release-type:
+      release_type:
         description: "Select the type of action to perform"
         required: true
         default: "Sync"
@@ -47,14 +47,14 @@ env:
   RELEASE_TAG: ${{ github.event.inputs.tag }}
   RELEASE_NAME: ${{ github.event.inputs.release_name }}
   BRANCH: ${{ github.event.inputs.branch }}
-  USER_HASH: ${{ github.event.inputs.user-hash }}
+  USER_HASH: ${{ github.event.inputs.user_hash }}
   REPO_OWNER: ${{ github.repository_owner }}
   REPO_NAME: ${{ github.event.repository.name }}
   VERSION: ${{ github.event.inputs.buildconfigs_version }}
 
 jobs:
   # 1. Update the params-latest.env and commit-latest.env files with new SHAs
-  Update-manifests:
+  Update_manifests:
     # grant the permissions that notebooks-digest-updater.yaml needs
     permissions:
       contents: write
@@ -62,11 +62,11 @@ jobs:
     uses: ./.github/workflows/notebooks-digest-updater.yaml
     with:
       branch: ${{ github.event.inputs.branch }}
-      user-hash: ${{ github.event.inputs.user-hash }}
+      user_hash: ${{ github.event.inputs.user_hash }}
 
   # 2. Check if the Manifest PR is merged
-  Manifests-merged:
-    needs: Update-manifests
+  Manifests_merged:
+    needs: Update_manifests
     runs-on: ubuntu-latest
     outputs:
       pr_merged_m: ${{ steps.check_pr.outputs.pr_merged }}
@@ -85,8 +85,8 @@ jobs:
           bash "${GITHUB_WORKSPACE}/ci/check-pr-merged.sh" "[Updater Action] Update Notebook and Runtime Images as well as the Commits With New SHAs" "${REPO_OWNER}" "${REPO_NAME}"
 
   # 3. Update the BuildConfigs for CUDA RStudio and RStudio
-  Update-buildConfigs:
-    if: ${{ github.event.inputs.update_buildconfigs == 'true' && github.event.inputs.release-type == 'Release' }}
+  Update_buildConfigs:
+    if: ${{ github.event.inputs.update_buildconfigs == true && github.event.inputs.release_type == 'Release' }}
     # grant the permissions that update-buildconfigs.yaml needs
     permissions:
       contents: write
@@ -97,9 +97,9 @@ jobs:
       version: ${{ github.event.inputs.buildconfigs_version }}
 
   # 4. Check if the BuildConfigs PR is merged
-  BuildConfigs-merged:
-    if: ${{ github.event.inputs.update_buildconfigs == 'true' && github.event.inputs.release-type == 'Release' }}
-    needs: Update-buildConfigs
+  BuildConfigs_merged:
+    if: ${{ github.event.inputs.update_buildconfigs == true && github.event.inputs.release_type == 'Release' }}
+    needs: Update_buildConfigs
     runs-on: ubuntu-latest
     outputs:
       pr_merged_b: ${{ steps.check_pr.outputs.pr_merged }}
@@ -118,9 +118,9 @@ jobs:
           bash "${GITHUB_WORKSPACE}/ci/check-pr-merged.sh" "[Updater Action] Update BuildConfigs for CUDA RStudio and RStudio" "${REPO_OWNER}" "${REPO_NAME}"
 
   # 5. Generate the release with BuildConfigs if needed
-  Generate-release_with_buildconfigs:
-    needs: [Update-manifests, Manifests-merged, Update-buildConfigs, BuildConfigs-merged]
-    if: ${{ needs.Manifests-merged.outputs.pr_merged_m == 'true' && needs.BuildConfigs-merged.outputs.pr_merged_b == 'true' && github.event.inputs.update_buildconfigs == 'true' && github.event.inputs.release-type == 'Release' }}
+  Generate_release_with_buildconfigs:
+    needs: [Update_manifests, Manifests_merged, Update_buildConfigs, BuildConfigs_merged]
+    if: ${{ needs.Manifests_merged.outputs.pr_merged_m == true && needs.BuildConfigs_merged.outputs.pr_merged_b == true && github.event.inputs.update_buildconfigs == true && github.event.inputs.release_type == 'Release' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -135,9 +135,9 @@ jobs:
           gh release create "$RELEASE_TAG" --title="$RELEASE_NAME-$RELEASE_TAG" --generate-notes --target $BRANCH
 
   # 6. Generate the release without BuildConfigs
-  Generate-release:
-    needs: [Update-manifests, Manifests-merged]
-    if: ${{ needs.Manifests-merged.outputs.pr_merged_m == 'true' && github.event.inputs.update_buildconfigs == 'false' && github.event.inputs.release-type == 'Release' }}
+  Generate_release:
+    needs: [Update_manifests, Manifests_merged]
+    if: ${{ needs.Manifests_merged.outputs.pr_merged_m == true && github.event.inputs.update_buildconfigs == false && github.event.inputs.release_type == 'Release' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
