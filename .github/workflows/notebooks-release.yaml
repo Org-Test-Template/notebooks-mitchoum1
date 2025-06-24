@@ -1,6 +1,9 @@
 ---
 name: Notebooks Release
-on:
+permissions:
+  contents: write
+  actions: read
+"on":
   workflow_dispatch:
     inputs:
       tag:
@@ -26,7 +29,7 @@ on:
         description: "Optional: Provide branch name"
         required: false
         type: string
-        default: 'main'
+        default: "main"
       user-hash:
         description: "Optional: Specify a Git hash (it should exists on the branch history)"
         required: false
@@ -41,14 +44,13 @@ on:
           - Release
 
 env:
-  CREATE_NEW_RELEASE: ${{ github.event.inputs.release-type == 'Release' }}
   RELEASE_TAG: ${{ github.event.inputs.tag }}
   RELEASE_NAME: ${{ github.event.inputs.release_name }}
-  BRANCH: ${{ github.event.inputs.branch}}
+  BRANCH: ${{ github.event.inputs.branch }}
   USER_HASH: ${{ github.event.inputs.user-hash }}
-  REPO_OWNER: mtchoum1
-  REPO_NAME: notebooks
-  VERSION: ${{ github.event.inputs.buildconfigs_version}}
+  REPO_OWNER: ${{ github.repository_owner }}
+  REPO_NAME: ${{ github.event.repository.name }}
+  VERSION: ${{ github.event.inputs.buildconfigs_version }}
 
 jobs:
   # 1. Update the params-latest.env and commit-latest.env files with new SHAs
@@ -62,7 +64,7 @@ jobs:
       branch: ${{ github.event.inputs.branch }}
       user-hash: ${{ github.event.inputs.user-hash }}
 
-  # 2. Check if the Manifest PR is merged      
+  # 2. Check if the Manifest PR is merged
   Manifests-merged:
     needs: Update-manifests
     runs-on: ubuntu-latest
@@ -208,9 +210,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Invoke Script to handle creating a release
+      - name: Generate notebooks release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ${{env.GITHUB_WORKSPACE}}
         run: |
-          gh release create "$RELEASE_TAG" --title="$RELEASE_NAME-$RELEASE_TAG" --generate-notes --target $BRANCH
+          gh release create "$RELEASE_TAG" --title="$RELEASE_NAME-$RELEASE_TAG" --generate-notes --target "$BRANCH"
