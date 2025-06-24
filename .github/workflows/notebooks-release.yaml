@@ -44,7 +44,7 @@ env:
   CREATE_NEW_RELEASE: ${{ github.event.inputs.release-type == 'Release' }}
   RELEASE_TAG: ${{ github.event.inputs.tag }}
   RELEASE_NAME: ${{ github.event.inputs.release_name }}
-  BRANCH: ${{ github.event.inputs.branch || 'main' }}
+  BRANCH: ${{ github.event.inputs.branch}}
   USER_HASH: ${{ github.event.inputs.user-hash }}
   REPO_OWNER: mtchoum1
   REPO_NAME: notebooks
@@ -53,7 +53,11 @@ env:
 jobs:
   # 1. Update the params-latest.env and commit-latest.env files with new SHAs
   Update-manifests:
-    uses: mtchoum1/notebooks/.github/workflows/notebooks-digest-updater.yaml@main
+    # grant the permissions that notebooks-digest-updater.yaml needs
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/notebooks-digest-updater.yaml
     with:
       branch: ${{ github.event.inputs.branch }}
       user-hash: ${{ github.event.inputs.user-hash }}
@@ -114,7 +118,11 @@ jobs:
   # 3. Update the BuildConfigs for CUDA RStudio and RStudio
   Update-buildConfigs:
     if: ${{ github.event.inputs.update_buildconfigs == 'true' && github.event.inputs.release-type == 'Release' }}
-    uses: mtchoum1/notebooks/.github/workflows/update-buildconfigs.yaml@main
+    # grant the permissions that update-buildconfigs.yaml needs
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/update-buildconfigs.yaml
     with:
       branch: ${{ github.event.inputs.branch }}
       version: ${{ github.event.inputs.buildconfigs_version }}
