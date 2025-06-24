@@ -26,6 +26,7 @@ on:
         description: "Optional: Provide branch name"
         required: false
         type: string
+        default: 'main'
       user-hash:
         description: "Optional: Specify a Git hash (it should exists on the branch history)"
         required: false

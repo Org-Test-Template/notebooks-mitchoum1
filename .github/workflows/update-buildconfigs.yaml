@@ -23,7 +23,7 @@ on:
         type: string
 env:
   TMP_BRANCH: tmp-verify-${{ github.run_id }}
-  BRANCH: ${{ inputs.branch || 'main' }}
+  BRANCH: ${{ inputs.branch }}
   VERSION: ${{ inputs.version }}
 
 jobs:
